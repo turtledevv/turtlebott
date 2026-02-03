@@ -3,7 +3,7 @@ name = "turtlebott"
 version = "1.0.0"
 description = "A multi-purpose Discord bot, for random experiments of mine."
 authors = [{ name = "Turtledevv", email = "contact@turtldev.online" }]
-license = { text = "none" }  # must be a table if not a standard SPDX license
+license = "GPL-3.0-or-later"
 readme = "README.md"
 keywords = ["discord", "bot", "automation", "python", "experiments"]
 classifiers = [
@@ -16,7 +16,8 @@ requires-python = ">=3.10"
 dependencies = [
     "discord.py",
     "python-dotenv",
-    "pydirectinput"
+    "pydirectinput",
+    "PyYAML"
 ]
 
 [build-system]

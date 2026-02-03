@@ -10,7 +10,7 @@ _file_handler = None
 
 
 class ColorFormatter(logging.Formatter):
-    """Formatter with ANSI color support for console output."""
+    """Formatter with ANSI color support for console output and fixed-width columns."""
     
     COLORS = {
         'DEBUG': '\033[36m',      # Cyan
@@ -20,20 +20,25 @@ class ColorFormatter(logging.Formatter):
         'CRITICAL': '\033[35m',   # Magenta
     }
     RESET = '\033[0m'
+
+    TIME_WIDTH = 19    # "YYYY-MM-DD HH:MM:SS"
+    NAME_WIDTH = 15    # adjust based on your longest logger name
+    LEVEL_WIDTH = 8    # enough for "CRITICAL"
     
     def format(self, record):
-        # Create a copy to avoid modifying the original record
         record_copy = logging.makeLogRecord(record.__dict__)
-        
-        levelname = record_copy.levelname
-        color = self.COLORS.get(levelname, self.RESET)
-        record_copy.levelname = f"{color}{levelname}{self.RESET}"
-        record_copy.name = f"\033[34m{record_copy.name}\033[0m"  # Blue for logger name
-        
-        log_format = "%(asctime)s | %(name)s | %(levelname)s | %(message)s"
-        formatter = logging.Formatter(log_format, datefmt="%Y-%m-%d %H:%M:%S")
-        return formatter.format(record_copy)
 
+        # Fixed-width fields
+        timestamp = datetime.fromtimestamp(record_copy.created).strftime("%Y-%m-%d %H:%M:%S")
+        name = f"{record_copy.name:<{self.NAME_WIDTH}}"
+        levelname = f"{record_copy.levelname:<{self.LEVEL_WIDTH}}"
+
+        # Apply colors
+        color = self.COLORS.get(record_copy.levelname, self.RESET)
+        levelname = f"{color}{levelname}{self.RESET}"
+        name = f"\033[34m{name}\033[0m"  # Blue for logger name
+
+        return f"{timestamp} | {name} | {levelname} | {record_copy.getMessage()}"
 
 class PlainFormatter(logging.Formatter):
     """Plain formatter without any color codes."""

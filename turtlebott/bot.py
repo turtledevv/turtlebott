@@ -17,6 +17,10 @@ logging.getLogger("discord").setLevel(logging.INFO)
 
 def run():
     start_time = time.time()
+
+    # logger.info("Turtlebott Copyright (C) 2025 Turtledevv. Licensed under the GPL 3.0 License.")
+    # logger.info("This is free software, and you are welcome to redistribute it under certain conditions. This program comes with ABSOLUTELY NO WARRANTY; see LICENSE for details.")
+
     bot = commands.Bot(command_prefix="t.", intents=settings.intents)
     
     @bot.event

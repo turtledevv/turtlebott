@@ -39,7 +39,10 @@ async def load_modules(bot) -> None:
         
         if is_enabled(module):
             logger.info(f"Loading module: {module}")
-            await bot.load_extension(f"turtlebott.modules.{module}")
+            try:
+                await bot.load_extension(f"turtlebott.modules.{module}")
+            except Exception as e:
+                logger.error(f"Failed to load module '{module}': {e}")
     
     # Log warnings if no modules are available or all are disabled
     if not MODULES:
