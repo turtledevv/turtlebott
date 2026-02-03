@@ -21,46 +21,22 @@ def run():
     # logger.info("Turtlebott Copyright (C) 2025 Turtledevv. Licensed under the GPL 3.0 License.")
     # logger.info("This is free software, and you are welcome to redistribute it under certain conditions. This program comes with ABSOLUTELY NO WARRANTY; see LICENSE for details.")
 
-    bot = commands.Bot(command_prefix="t.", intents=settings.intents)
-    
+    bot = commands.Bot(command_prefix="t.", intents=settings.intents, help_command=None)
+
     @bot.event
     async def on_ready():
         logger.info(f"Logged in as {bot.user}")
+
+        logger.info("Loading modules...")
         await load_modules(bot)
+
+        logger.info("Syncing application commands...")
         await bot.tree.sync()
+        logger.info(f"Synced {len(bot.tree.get_commands())} commands.")
+
         await bot.change_presence(status=discord.Status.dnd, activity=discord.Activity(name="Beep boop!", type=discord.ActivityType.playing))
 
         elapsed_ms = (time.time() - start_time) * 1000
         logger.info(f"Done! (took {elapsed_ms:.0f}ms)")
-
-    @bot.hybrid_command(name="listmodules")
-    async def listmodules(ctx):
-        """Lists enabled and disabled modules with descriptions."""
-        logger.info(f"User {ctx.author} invoked listmodules command.")
-
-        enabled = []
-        disabled = []
-
-        for module in get_all_modules():
-            desc = get_module_doc(module)
-            line = f"**{module}** – *{desc}*"
-
-            if is_enabled(module):
-                enabled.append(line)
-            else:
-                disabled.append(line)
-
-        if not enabled:
-            await ctx.send("No modules are currently enabled.")
-            return
-
-        message = (
-            "## **Enabled modules:**\n"
-            + "\n".join(enabled)
-            + "\n\n## **Disabled modules:**\n"
-            + "\n".join(disabled)
-        )
-
-        await ctx.reply(message)
 
     bot.run(settings.token, log_handler=None)
