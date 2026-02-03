@@ -6,7 +6,7 @@ import discord
 from discord.ext import commands
 from turtlebott.utils.logger import setup_logger
 
-logger = setup_logger("example")
+logger = setup_logger("randfun")
 
 
 class RandFun(commands.Cog):
