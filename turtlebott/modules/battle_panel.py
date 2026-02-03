@@ -1,14 +1,9 @@
 """
-Discord bot module for remotely controlling the Roblox game "The Battle Bricks" via a sick as fuck Discord control panel.
-Uses pydirectinput to simulate keyboard and mouse inputs.
-Make sure to disable when not in use, or people can.. just.. randomly control your whole PC.
-That's bad. Ouch.
-
-
-NOTES TO SELF:
-    - Make it only work when Roblox is focused
-    - Add more functionality (like changing loadout, upgrading/buying battlers, etc..) (Will require a *LOT* of mouse input and maybe some game state detection, mayhaps?)
+Discord bot module for remotely controlling the Roblox game "The Battle Bricks" via a sick af Discord control panel.
 """
+# NOTES TO SELF:
+#     - Make it only work when Roblox is focused
+#     - Add more functionality (like changing loadout, upgrading/buying battlers, etc..) (Will require a *LOT* of mouse input and maybe some game state detection, mayhaps?)
 import discord
 from discord.ext import commands
 import pydirectinput
@@ -273,7 +268,7 @@ class BattlePanel(commands.Cog):
 
     @commands.hybrid_command()
     async def panel(self, ctx):
-        await ctx.send(embed=discord.Embed(title="Controls", color=0x2b2d31), view=MovementView())
+        await ctx.reply(embed=discord.Embed(title="Controls", color=0x2b2d31), view=MovementView())
         await ctx.send(view=BattlersView())
         await ctx.send(view=ScreenView())
 

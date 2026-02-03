@@ -1,3 +1,6 @@
+"""
+Example module for Turtlebott with a single 'test' command. For future reference.
+"""
 import discord
 from discord.ext import commands
 from turtlebott.utils.logger import setup_logger
@@ -13,7 +16,7 @@ class Example(commands.Cog):
     async def test(self, ctx):
         """Simple example command that replies with Hello World!"""
         logger.info(f"User {ctx.author} invoked test command.")
-        await ctx.send("Hello World!")
+        await ctx.reply("Hello World!")
 
 
 async def setup(bot):

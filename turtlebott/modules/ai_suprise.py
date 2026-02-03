@@ -1,3 +1,6 @@
+"""
+Upon asking ChatGPT for a suprise command, this was it's response.
+"""
 import discord
 from discord.ext import commands
 import asyncio
@@ -13,12 +16,12 @@ class AISuprise(commands.Cog):
 
     @commands.hybrid_command(name="suprise")
     async def suprise(self, ctx: commands.Context):
-        """A chaotic command that does… things."""
+        """Upon asking ChatGPT for a suprise command, this was it's response."""
         logger.info(f"User {ctx.author} invoked suprise command.")
         # Step 1: Acknowledge nothing
-        msg = await ctx.send(r"-# This was made 100% by generative AI. Upon asking for a suprise, this was it's response.")
+        msg = await ctx.reply(r"-# This was made 100% by generative AI. Upon asking for a suprise, this was it's response.")
 
-        await asyncio.sleep(1.5)
+        await asyncio.sleep(1.8)
 
         # Step 2: Begin nonsense
         frames = [

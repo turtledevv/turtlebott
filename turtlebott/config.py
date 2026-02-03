@@ -13,4 +13,5 @@ class Settings:
     token = os.getenv("DISCORD_TOKEN")
     intents = Intents.all()
 
+modules = list(yaml_config["experiments_config"].keys())
 settings = Settings()
