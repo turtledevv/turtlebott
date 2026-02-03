@@ -1,5 +1,5 @@
 ![turtlebott banner](https://github.com/turtledevv/turtlebott/blob/main/assets/banner.png?raw=true)
-# Turtlebott
+# 🐢 Turtlebott
 My ultimate experiments bot, with easy-to-make modules that you can slide in (with just **3 steps**)!
 
 ## Installation
