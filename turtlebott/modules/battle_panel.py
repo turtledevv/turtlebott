@@ -1,9 +1,16 @@
 """
 Discord bot module for remotely controlling the Roblox game "The Battle Bricks" via a sick af Discord control panel.
 """
+
+import sys
+
+# Only allow this module to load on Windows
+if not sys.platform.startswith("win"):
+    raise ImportError("The battle_panel module is only supported on Windows (pydirectinput requires Windows). Module has been disabled!")
 # NOTES TO SELF:
 #     - Make it only work when Roblox is focused
 #     - Add more functionality (like changing loadout, upgrading/buying battlers, etc..) (Will require a *LOT* of mouse input and maybe some game state detection, mayhaps?)
+
 import discord
 from discord.ext import commands
 import pydirectinput
