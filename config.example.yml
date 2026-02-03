@@ -1,4 +1,6 @@
 experiments_config:
+  randfun: # Fun little commands n stuff!
+    enabled: true
   example: # Simple example module
     enabled: true
   ai_suprise: # I let an AI make a suprise command for me. It's.. interesting, to say the least.
