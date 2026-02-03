@@ -9,7 +9,7 @@ class Example(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(name="test")
+    @commands.hybrid_command(name="test")
     async def test(self, ctx):
         """Simple example command that replies with Hello World!"""
         logger.info(f"User {ctx.author} invoked test command.")

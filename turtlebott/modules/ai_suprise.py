@@ -11,7 +11,7 @@ class AISuprise(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(name="suprise")
+    @commands.hybrid_command(name="suprise")
     async def suprise(self, ctx: commands.Context):
         """A chaotic command that does… things."""
         logger.info(f"User {ctx.author} invoked suprise command.")

@@ -271,7 +271,7 @@ class BattlePanel(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
+    @commands.hybrid_command()
     async def panel(self, ctx):
         await ctx.send(embed=discord.Embed(title="Controls", color=0x2b2d31), view=MovementView())
         await ctx.send(view=BattlersView())

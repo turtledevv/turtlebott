@@ -1,12 +1,18 @@
 import asyncio
 from http import client
 import time
+import logging
 import discord
 from discord.ext import commands
 from .config import settings
 from .utils.logger import setup_logger
 
 logger = setup_logger("bot")
+
+# Configure discord.py to use the same logging system
+discord_logger = setup_logger("discord")
+logging.getLogger("discord").parent = None
+logging.getLogger("discord").setLevel(logging.INFO)
 
  # add ya new modules here if i add any in the future (I WILL.)
 modules = [
@@ -50,10 +56,10 @@ def run():
         await load_modules(bot)
         
 
-        await bot.change_presence(activity=discord.Activity(name="Beep boop", type=discord.ActivityType.custom)) # WHY WON'T THIS JUST WORK??
+        await bot.change_presence(status=discord.Status.dnd, activity=discord.Activity(name="Beep boop!", type=discord.ActivityType.playing))
 
 
         elapsed_ms = (time.time() - start_time) * 1000
         logger.info(f"Done! (took {elapsed_ms:.0f}ms)")
     
-    bot.run(settings.token)
+    bot.run(settings.token, log_handler=None)
