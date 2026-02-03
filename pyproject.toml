@@ -1,0 +1,25 @@
+[project]
+name = "turtlebott"
+version = "1.0.0"
+description = "A multi-purpose Discord bot, for random experiments of mine."
+authors = [{ name = "Turtledevv", email = "contact@turtldev.online" }]
+license = { text = "none" }  # must be a table if not a standard SPDX license
+readme = "README.md"
+keywords = ["discord", "bot", "automation", "python", "experiments"]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: OS Independent"
+]
+requires-python = ">=3.10"
+dependencies = [
+    "discord.py",
+    "python-dotenv",
+    "pydirectinput"
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+

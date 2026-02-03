@@ -1,0 +1,10 @@
+experiments_config:
+  example: # Simple example module
+    enabled: true
+  ai_suprise: # I let an AI make a suprise command for me. It's.. interesting, to say the least.
+    enabled: true
+  battle_panel: # The Battle Bricks control panel
+    enabled: false
+    userWhitelistEnabled: false # Should the whitelist be enabled?
+    userWhitelist:
+      - 000000000000000000 # User 1
