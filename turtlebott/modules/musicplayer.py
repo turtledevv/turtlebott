@@ -1,23 +1,26 @@
 """
-Music player module! Supports direct links and YouTube.
+Music player module! Supports direct links, YouTube, and local files.
 """
 import discord
 from discord.ext import commands
-from discord import app_commands
 from turtlebott.utils.logger import setup_logger
 import yt_dlp
-import asyncio
+import urllib.parse
+import os
 
 logger = setup_logger("music")
 
-FFMPEG_OPTIONS = {
+FFMPEG_REMOTE_OPTIONS = {
     "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+    "options": "-vn",
+}
+FFMPEG_LOCAL_OPTIONS = {
     "options": "-vn",
 }
 
 
 class Music(commands.Cog):
-    """Music player cog supporting YouTube and direct links."""
+    """Music player cog supporting YouTube, direct links, and local files."""
 
     def __init__(self, bot):
         self.bot = bot
@@ -39,20 +42,31 @@ class Music(commands.Cog):
         self.voice_clients[ctx.guild.id] = vc
         return vc
 
-    def get_source(self, url):
-        """Download or get audio source URL using yt-dlp."""
+    def get_source(self, url: str):
+        """Get audio source URL using yt-dlp or local file."""
+        if url.startswith("file://"):
+            # Decode percent-encoded characters
+            path = urllib.parse.unquote(url[7:])
+            if os.path.isfile(path):
+                return {"type": "local", "path": path}
+            else:
+                logger.error(f"File not found: {path}")
+                return None
+
+
+        # Assume YouTube or direct link
         ydl_opts = {"format": "bestaudio", "quiet": True, "extract_flat": "in_playlist"}
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
-                return info["url"]
+                return {"type": "remote", "path": info["url"]}
         except Exception as e:
             logger.error(f"Error fetching audio: {e}")
             return None
 
-    @commands.hybrid_command(name="play", description="Play a song from YouTube or direct URL")
+    @commands.hybrid_command(name="play", description="Play a song from YouTube, direct URL, or local file")
     async def play(self, ctx, url: str):
-        """Play a song from URL."""
+        """Play a song from URL or local file."""
         logger.info(f"User {ctx.author} invoked play command with URL: {url}")
         vc = await self.connect_to_vc(ctx)
         if not vc:
@@ -61,12 +75,20 @@ class Music(commands.Cog):
         if vc.is_playing():
             vc.stop()
 
-        source_url = self.get_source(url)
-        if not source_url:
+        source_info = self.get_source(url)
+        if not source_info:
             await ctx.reply("Failed to get audio source.")
             return
 
-        vc.play(discord.FFmpegPCMAudio(source_url, **FFMPEG_OPTIONS), after=lambda e: logger.error(f"Player error: {e}") if e else None)
+        if source_info["type"] == "local":
+            ffmpeg_opts = FFMPEG_LOCAL_OPTIONS
+        else:
+            ffmpeg_opts = FFMPEG_REMOTE_OPTIONS
+
+        vc.play(
+            discord.FFmpegPCMAudio(source_info["path"], **ffmpeg_opts),
+            after=lambda e: logger.error(f"Player error: {e}") if e else None
+        )
         await ctx.reply(f"Now playing: {url}")
 
     @commands.hybrid_command(name="pause", description="Pause the current audio")

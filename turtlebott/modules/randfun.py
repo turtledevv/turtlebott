@@ -13,6 +13,13 @@ class RandFun(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+
+    @commands.hybrid_command(name="idfk")
+    async def idfk(self, ctx):
+        """No description provided."""
+        logger.info(f"User {ctx.author} invoked idfk command.")
+        await ctx.reply(f"Well, *I* don't know either! Don't ask me!")
+
     @commands.hybrid_command(name="gif")
     async def gif(self, ctx):
         """Simple example command that sends a random gif."""
