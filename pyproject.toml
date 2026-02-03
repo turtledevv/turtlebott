@@ -18,7 +18,8 @@ dependencies = [
     "python-dotenv",
     "pydirectinput",
     "PyYAML",
-    "PyNaCl"
+    "PyNaCl",
+    "yt-dlp"
 ]
 
 [build-system]

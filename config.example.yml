@@ -1,4 +1,8 @@
 experiments_config:
+  musicplayer: # Simple music player.
+    enabled: true
+  builtin: # DO NOT DISABLE!!! DO NOT!! I KNOW YOU *REALLY* WANT TO, BUT DON'T.
+    enabled: true
   randfun: # Fun little commands n stuff!
     enabled: true
   example: # Simple example module
