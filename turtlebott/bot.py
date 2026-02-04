@@ -7,6 +7,7 @@ from discord.ext import commands
 from .config import settings
 from .utils.logger import setup_logger
 from .utils.module_loader import load_modules, get_module_doc, get_all_modules, is_enabled
+import traceback
 
 logger = setup_logger("bot")
 
@@ -38,5 +39,11 @@ def run():
 
         elapsed_ms = (time.time() - start_time) * 1000
         logger.info(f"Done! (took {elapsed_ms:.0f}ms)")
+
+    @bot.event
+    async def on_command_error(ctx, error):
+        traceback.print_exception(type(error), error, error.__traceback__)
+        await ctx.reply(f"An error occurred: {str(error)}")
+
 
     bot.run(settings.token, log_handler=None)
