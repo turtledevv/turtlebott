@@ -6,6 +6,7 @@ from discord.ext import commands, tasks
 
 from turtlebott.utils.logger import setup_logger
 from turtlebott.config import settings
+from turtlebott.utils.debug import debug_exception, get_retry_and_code
 
 from dotenv import load_dotenv
 import os
@@ -13,6 +14,7 @@ import asyncio
 import aiohttp
 import time
 from dataclasses import dataclass, field
+from types import SimpleNamespace
 
 from google import genai
 from google.genai import types
@@ -101,15 +103,23 @@ class Chatbot(commands.Cog):
         self.message_to_root[message_id] = convo.root_bot_message_id
 
     async def _generate(self, contents: list):
-        return await asyncio.to_thread(
-            client.models.generate_content,
-            model=model_name,
-            config=types.GenerateContentConfig(
-                temperature=temperature,
-                system_instruction=system_instructions
-            ),
-            contents=contents
-        )
+        try:
+            return await asyncio.to_thread(
+                client.models.generate_content,
+                model=model_name,
+                config=types.GenerateContentConfig(
+                    temperature=temperature,
+                    system_instruction=system_instructions
+                ),
+                contents=contents
+            )
+        except Exception as e:
+            error_code, retry_delay = get_retry_and_code(e)
+            if str(error_code) == "429":
+                logger.warning(f"Rate limit encountered. Retry after: {retry_delay}")
+                return SimpleNamespace(text=f"Rate limit error! Try again in {retry_delay}!")# Fake the message as the error. Jank, yeh. Works? Maybe.
+            logger.exception(f"Error during AI generation: {e}")
+            raise e
 
     async def _handle_prompt(
         self,
