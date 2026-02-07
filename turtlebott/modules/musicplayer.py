@@ -1,6 +1,8 @@
 """
-Music player module! Supports direct links, YouTube, and local files.
+Music player module! Supports direct links, YouTube (including playlists), and local files.
 """
+
+import asyncio
 import discord
 from discord.ext import commands
 from turtlebott.utils.logger import setup_logger
@@ -18,13 +20,27 @@ FFMPEG_LOCAL_OPTIONS = {
     "options": "-vn",
 }
 
+YTDL_OPTS = {
+    "format": "bestaudio/best",
+    "quiet": True,
+    "noplaylist": False,  # IMPORTANT: allow playlists
+    "extract_flat": False,
+}
+
 
 class Music(commands.Cog):
-    """Music player cog supporting YouTube, direct links, and local files."""
+    """Music player cog supporting YouTube, playlists, direct links, and local files."""
 
     def __init__(self, bot):
         self.bot = bot
         self.voice_clients = {}
+        self.queues = {}  # guild_id -> list of tracks
+        self.locks = {}   # guild_id -> asyncio.Lock()
+
+    def get_lock(self, guild_id: int) -> asyncio.Lock:
+        if guild_id not in self.locks:
+            self.locks[guild_id] = asyncio.Lock()
+        return self.locks[guild_id]
 
     async def connect_to_vc(self, ctx):
         """Helper to join the user's voice channel."""
@@ -42,54 +58,170 @@ class Music(commands.Cog):
         self.voice_clients[ctx.guild.id] = vc
         return vc
 
-    def get_source(self, url: str):
-        """Get audio source URL using yt-dlp or local file."""
-        if url.startswith("file://"):
-            # Decode percent-encoded characters
-            path = urllib.parse.unquote(url[7:])
-            if os.path.isfile(path):
-                return {"type": "local", "path": path}
-            else:
-                logger.error(f"File not found: {path}")
-                return None
-
-
-        # Assume YouTube or direct link
-        ydl_opts = {"format": "bestaudio", "quiet": True, "extract_flat": "in_playlist"}
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
-                return {"type": "remote", "path": info["url"]}
-        except Exception as e:
-            logger.error(f"Error fetching audio: {e}")
+    def parse_file_url(self, url: str):
+        """Parse file:// URL into local file path if it exists."""
+        if not url.startswith("file://"):
             return None
 
-    @commands.hybrid_command(name="play", description="Play a song from YouTube, direct URL, or local file")
+        path = urllib.parse.unquote(url[7:])
+        if os.path.isfile(path):
+            return path
+
+        logger.error(f"File not found: {path}")
+        return None
+
+    def extract_tracks(self, url: str):
+        """
+        Returns a list of track dicts.
+        Each track dict contains:
+          - title
+          - webpage_url
+          - stream_url
+          - type: local/remote
+          - ffmpeg_opts
+        """
+
+        # Local file support
+        local_path = self.parse_file_url(url)
+        if local_path:
+            return [{
+                "title": os.path.basename(local_path),
+                "webpage_url": url,
+                "stream_url": local_path,
+                "type": "local",
+                "ffmpeg_opts": FFMPEG_LOCAL_OPTIONS,
+            }]
+
+        # yt-dlp (YouTube single OR playlist)
+        try:
+            with yt_dlp.YoutubeDL(YTDL_OPTS) as ydl:
+                info = ydl.extract_info(url, download=False)
+
+            tracks = []
+
+            # Playlist case
+            if "entries" in info and info["entries"]:
+                for entry in info["entries"]:
+                    if not entry:
+                        continue
+
+                    # Some entries are incomplete, re-extract to get stream url
+                    if "url" not in entry or entry.get("_type") == "url":
+                        with yt_dlp.YoutubeDL(YTDL_OPTS) as ydl:
+                            entry = ydl.extract_info(entry["webpage_url"], download=False)
+
+                    tracks.append({
+                        "title": entry.get("title", "Unknown title"),
+                        "webpage_url": entry.get("webpage_url", url),
+                        "stream_url": entry["url"],
+                        "type": "remote",
+                        "ffmpeg_opts": FFMPEG_REMOTE_OPTIONS,
+                    })
+
+                return tracks
+
+            # Single video case
+            return [{
+                "title": info.get("title", "Unknown title"),
+                "webpage_url": info.get("webpage_url", url),
+                "stream_url": info["url"],
+                "type": "remote",
+                "ffmpeg_opts": FFMPEG_REMOTE_OPTIONS,
+            }]
+
+        except Exception as e:
+            logger.error(f"Error fetching audio: {e}")
+            return []
+
+    async def play_next(self, guild_id: int, text_channel: discord.abc.Messageable):
+        """Plays the next track in queue for a guild."""
+        lock = self.get_lock(guild_id)
+
+        async with lock:
+            vc = self.voice_clients.get(guild_id)
+            if not vc or not vc.is_connected():
+                return
+
+            queue = self.queues.get(guild_id, [])
+            if not queue:
+                await text_channel.send("Queue finished.")
+                return
+
+            track = queue.pop(0)
+
+            def after_play(err):
+                if err:
+                    logger.error(f"Player error: {err}")
+
+                # Schedule next track safely back on the event loop
+                fut = asyncio.run_coroutine_threadsafe(
+                    self.play_next(guild_id, text_channel),
+                    self.bot.loop
+                )
+                try:
+                    fut.result()
+                except Exception as e:
+                    logger.error(f"Error scheduling next track: {e}")
+
+            vc.play(
+                discord.FFmpegPCMAudio(track["stream_url"], **track["ffmpeg_opts"]),
+                after=after_play
+            )
+
+            await text_channel.send(f"Now playing: **{track['title']}**")
+
+    @commands.hybrid_command(name="play", description="Play a song or playlist from YouTube, direct URL, or local file")
     async def play(self, ctx, url: str):
-        """Play a song from URL or local file."""
-        logger.info(f"User {ctx.author} invoked play command with URL: {url}")
+        logger.info(f"User {ctx.author} invoked play with: {url}")
+
         vc = await self.connect_to_vc(ctx)
         if not vc:
             return
 
-        if vc.is_playing():
-            vc.stop()
-
-        source_info = self.get_source(url)
-        if not source_info:
+        tracks = self.extract_tracks(url)
+        if not tracks:
             await ctx.reply("Failed to get audio source.")
             return
 
-        if source_info["type"] == "local":
-            ffmpeg_opts = FFMPEG_LOCAL_OPTIONS
-        else:
-            ffmpeg_opts = FFMPEG_REMOTE_OPTIONS
+        # Init queue
+        if ctx.guild.id not in self.queues:
+            self.queues[ctx.guild.id] = []
 
-        vc.play(
-            discord.FFmpegPCMAudio(source_info["path"], **ffmpeg_opts),
-            after=lambda e: logger.error(f"Player error: {e}") if e else None
-        )
-        await ctx.reply(f"Now playing: {url}")
+        # Add to queue
+        self.queues[ctx.guild.id].extend(tracks)
+
+        if len(tracks) == 1:
+            await ctx.reply(f"Queued: **{tracks[0]['title']}**")
+        else:
+            await ctx.reply(f"Queued playlist: **{len(tracks)} tracks**")
+
+        # If nothing is playing, start
+        if not vc.is_playing() and not vc.is_paused():
+            await self.play_next(ctx.guild.id, ctx.channel)
+
+    @commands.hybrid_command(name="skip", description="Skip the current track")
+    async def skip(self, ctx):
+        vc = self.voice_clients.get(ctx.guild.id)
+        if vc and (vc.is_playing() or vc.is_paused()):
+            vc.stop()
+            await ctx.reply("Skipped.")
+        else:
+            await ctx.reply("Nothing is playing.")
+
+    @commands.hybrid_command(name="queue", description="Show the current queue")
+    async def queue(self, ctx):
+        queue = self.queues.get(ctx.guild.id, [])
+        if not queue:
+            await ctx.reply("Queue is empty.")
+            return
+
+        preview = queue[:10]
+        msg = "\n".join([f"{i+1}. {t['title']}" for i, t in enumerate(preview)])
+
+        if len(queue) > 10:
+            msg += f"\n...and {len(queue) - 10} more."
+
+        await ctx.reply(f"**Queue:**\n{msg}")
 
     @commands.hybrid_command(name="pause", description="Pause the current audio")
     async def pause(self, ctx):
@@ -109,14 +241,19 @@ class Music(commands.Cog):
         else:
             await ctx.reply("Nothing is paused.")
 
-    @commands.hybrid_command(name="stop", description="Stop audio and disconnect")
+    @commands.hybrid_command(name="stop", description="Stop audio, clear queue, and disconnect")
     async def stop(self, ctx):
-        vc = self.voice_clients.get(ctx.guild.id)
+        guild_id = ctx.guild.id
+        vc = self.voice_clients.get(guild_id)
+
+        # Clear queue
+        self.queues[guild_id] = []
+
         if vc:
             if vc.is_playing() or vc.is_paused():
                 vc.stop()
             await vc.disconnect()
-            await ctx.reply("Stopped and disconnected.")
+            await ctx.reply("Stopped, cleared queue, and disconnected.")
         else:
             await ctx.reply("I am not connected to a voice channel.")
 
