@@ -327,7 +327,7 @@ class Music(commands.Cog):
         if not vc:
             return
         
-        ctx.reply("<a:loading:1470271877992677396> Processing links...")
+        await ctx.reply("<a:loading:1470271877992677396> Processing links...")
 
         tracks = self.extract_tracks(input_text, allow_search=True)
         if not tracks:
