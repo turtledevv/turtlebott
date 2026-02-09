@@ -1,5 +1,5 @@
 """
-Music player module! Supports direct links, YouTube (including playlists), and local files.
+Music player module! Supports direct links, YouTube (including playlists), YouTube search, and local files.
 """
 
 import asyncio
@@ -29,7 +29,7 @@ YTDL_OPTS = {
 
 
 class Music(commands.Cog):
-    """Music player cog supporting YouTube, playlists, direct links, and local files."""
+    """Music player cog supporting YouTube, playlists, direct links, local files, and YouTube search."""
 
     def __init__(self, bot):
         self.bot = bot
@@ -70,7 +70,12 @@ class Music(commands.Cog):
         logger.error(f"File not found: {path}")
         return None
 
-    def extract_tracks(self, url: str):
+    def looks_like_url(self, text: str) -> bool:
+        """Basic URL detection."""
+        text = text.strip().lower()
+        return text.startswith(("http://", "https://", "www.", "file://"))
+
+    def extract_tracks(self, input_text: str, *, allow_search: bool):
         """
         Returns a list of track dicts.
         Each track dict contains:
@@ -81,26 +86,35 @@ class Music(commands.Cog):
           - ffmpeg_opts
         """
 
+        input_text = input_text.strip()
+
         # Local file support
-        local_path = self.parse_file_url(url)
+        local_path = self.parse_file_url(input_text)
         if local_path:
             return [{
                 "title": os.path.basename(local_path),
-                "webpage_url": url,
+                "webpage_url": input_text,
                 "stream_url": local_path,
                 "type": "local",
                 "ffmpeg_opts": FFMPEG_LOCAL_OPTIONS,
             }]
 
-        # yt-dlp (YouTube single OR playlist)
+        # If search is allowed, and it doesn't look like a URL, treat as YouTube search
+        if allow_search and not self.looks_like_url(input_text):
+            input_text = f"ytsearch:{input_text}"
+
+        # If search is NOT allowed, reject non-URLs
+        if not allow_search and not self.looks_like_url(input_text):
+            return []
+
+        # yt-dlp (YouTube single OR playlist OR direct link)
         try:
             with yt_dlp.YoutubeDL(YTDL_OPTS) as ydl:
-                info = ydl.extract_info(url, download=False)
-
-            tracks = []
+                info = ydl.extract_info(input_text, download=False)
 
             # Playlist case
-            if "entries" in info and info["entries"]:
+            if "entries" in info and info["entries"] and info.get("_type") == "playlist":
+                tracks = []
                 for entry in info["entries"]:
                     if not entry:
                         continue
@@ -112,7 +126,7 @@ class Music(commands.Cog):
 
                     tracks.append({
                         "title": entry.get("title", "Unknown title"),
-                        "webpage_url": entry.get("webpage_url", url),
+                        "webpage_url": entry.get("webpage_url", input_text),
                         "stream_url": entry["url"],
                         "type": "remote",
                         "ffmpeg_opts": FFMPEG_REMOTE_OPTIONS,
@@ -120,10 +134,27 @@ class Music(commands.Cog):
 
                 return tracks
 
+            # ytsearch case (returns entries)
+            if "entries" in info and info["entries"]:
+                entry = info["entries"][0]
+                if not entry:
+                    return []
+
+                with yt_dlp.YoutubeDL(YTDL_OPTS) as ydl:
+                    entry = ydl.extract_info(entry["webpage_url"], download=False)
+
+                return [{
+                    "title": entry.get("title", "Unknown title"),
+                    "webpage_url": entry.get("webpage_url", input_text),
+                    "stream_url": entry["url"],
+                    "type": "remote",
+                    "ffmpeg_opts": FFMPEG_REMOTE_OPTIONS,
+                }]
+
             # Single video case
             return [{
                 "title": info.get("title", "Unknown title"),
-                "webpage_url": info.get("webpage_url", url),
+                "webpage_url": info.get("webpage_url", input_text),
                 "stream_url": info["url"],
                 "type": "remote",
                 "ffmpeg_opts": FFMPEG_REMOTE_OPTIONS,
@@ -153,7 +184,6 @@ class Music(commands.Cog):
                 if err:
                     logger.error(f"Player error: {err}")
 
-                # Schedule next track safely back on the event loop
                 fut = asyncio.run_coroutine_threadsafe(
                     self.play_next(guild_id, text_channel),
                     self.bot.loop
@@ -170,24 +200,25 @@ class Music(commands.Cog):
 
             await text_channel.send(f"Now playing: **{track['title']}**")
 
-    @commands.hybrid_command(name="play", description="Play a song or playlist from YouTube, direct URL, or local file")
-    async def play(self, ctx, url: str):
-        logger.info(f"User {ctx.author} invoked play with: {url}")
+    @commands.hybrid_command(
+        name="play",
+        description="Play a song or playlist from YouTube, direct URL, local file, or search query"
+    )
+    async def play(self, ctx, *, input_text: str):
+        logger.info(f"User {ctx.author} invoked play with: {input_text}")
 
         vc = await self.connect_to_vc(ctx)
         if not vc:
             return
 
-        tracks = self.extract_tracks(url)
+        tracks = self.extract_tracks(input_text, allow_search=True)
         if not tracks:
             await ctx.reply("Failed to get audio source.")
             return
 
-        # Init queue
         if ctx.guild.id not in self.queues:
             self.queues[ctx.guild.id] = []
 
-        # Add to queue
         self.queues[ctx.guild.id].extend(tracks)
 
         if len(tracks) == 1:
@@ -195,7 +226,35 @@ class Music(commands.Cog):
         else:
             await ctx.reply(f"Queued playlist: **{len(tracks)} tracks**")
 
-        # If nothing is playing, start
+        if not vc.is_playing() and not vc.is_paused():
+            await self.play_next(ctx.guild.id, ctx.channel)
+
+    @commands.hybrid_command(
+        name="forceplay",
+        description="Play ONLY a direct URL or file:// path (no YouTube search detection)"
+    )
+    async def forceplay(self, ctx, *, input_text: str):
+        logger.info(f"User {ctx.author} invoked forceplay with: {input_text}")
+
+        vc = await self.connect_to_vc(ctx)
+        if not vc:
+            return
+
+        tracks = self.extract_tracks(input_text, allow_search=False)
+        if not tracks:
+            await ctx.reply("forceplay requires a direct URL or file:// path (no search).")
+            return
+
+        if ctx.guild.id not in self.queues:
+            self.queues[ctx.guild.id] = []
+
+        self.queues[ctx.guild.id].extend(tracks)
+
+        if len(tracks) == 1:
+            await ctx.reply(f"Queued: **{tracks[0]['title']}**")
+        else:
+            await ctx.reply(f"Queued playlist: **{len(tracks)} tracks**")
+
         if not vc.is_playing() and not vc.is_paused():
             await self.play_next(ctx.guild.id, ctx.channel)
 
@@ -246,7 +305,6 @@ class Music(commands.Cog):
         guild_id = ctx.guild.id
         vc = self.voice_clients.get(guild_id)
 
-        # Clear queue
         self.queues[guild_id] = []
 
         if vc:
