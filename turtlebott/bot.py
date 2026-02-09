@@ -43,7 +43,7 @@ def run():
     @bot.event
     async def on_command_error(ctx, error):
         traceback.print_exception(type(error), error, error.__traceback__)
-        await ctx.reply(f"An error occurred: {str(error)}")
+        await ctx.reply(f"<:info:1470271874406682655> An error occurred: {str(error)}")
 
 
     bot.run(settings.token, log_handler=None)
