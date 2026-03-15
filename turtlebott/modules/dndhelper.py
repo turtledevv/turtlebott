@@ -24,6 +24,20 @@ class DndHelper(commands.Cog):
 
         self.bot = bot
     
+    def get_linked_character(self, guild_id: int, user_id: int) -> str | None:
+        """Return the character name linked to a user, or None."""
+
+        link_file = os.path.join(self.DATA_DIR, "char_link.json")
+
+        if not os.path.exists(link_file):
+            return None
+
+        with open(link_file, "r") as f:
+            links = json.load(f)
+
+        server_links = links.get(str(guild_id), {})
+        return server_links.get(str(user_id))
+    
     # helpah functions, cause of course I wouldn't ever move them into their own seperate utils file!
     async def download(self, url: str, filepath: str):
         async with aiohttp.ClientSession() as session:
@@ -158,7 +172,8 @@ class DndHelper(commands.Cog):
             await ctx.reply("No character sheets found for this server.")
             return
 
-        character_name = character_name or all_chars[0]
+        char = self.get_linked_character(ctx.guild.id, ctx.author.id)
+        character_name = character_name or char or all_chars[0]
         if character_name not in all_chars:
             await ctx.reply(f"No character sheet found with the name `{character_name}`.")
             return
@@ -179,6 +194,11 @@ class DndHelper(commands.Cog):
         if not os.path.exists(sheets_folder):
             await ctx.reply("No character sheets found for this server.")
             return
+        
+        if not ctx.author.guild_permissions.administrator:
+            await ctx.reply("You don't have the power to update character sheets.")
+            return
+
         
         updated = 0
         failed = 0
@@ -235,7 +255,6 @@ class DndHelper(commands.Cog):
                 
         await ctx.reply(f"Updated {updated} character sheets. Failed: {failed}\n-# Updated: {', '.join(updates)}\n-# Failed: {', '.join(fails)}")
             
-    # commands, and shit
     @commands.hybrid_command(name="newchar", aliases=["newcharacter"])
     async def newchar(self, ctx, url: str, pfp: str | None = None):
         logger.info(f"User {ctx.author} invoked newchar with URL: {url}")
@@ -319,8 +338,7 @@ class DndHelper(commands.Cog):
         with open(save_path, "w") as f:
             json.dump(data, f, indent=4)
 
-        await ctx.reply(f"Character saved! Use `{ctx.prefix}char {name}` to view it.")
-            
+        await ctx.reply(f"Character saved! Use `{ctx.prefix}char {name}` to view it.")      
 
     @commands.hybrid_command(name="roll", aliases=["r"])
     async def roll(self, ctx, *, expression: str | None = None):
@@ -328,18 +346,27 @@ class DndHelper(commands.Cog):
 
         if not expression:
             expression = "1d20"
-
+        if expression.startswith("<@"):
+            user = int(expression.split(">")[0][2:].replace("!", ""))
+            expression = expression.split(">")[1].strip()
+        else:
+            user = ctx.author.id
         thing = expression.lower().strip()
 
         base_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
         sheets_folder = os.path.join(base_folder, "data", "dnd_helper", "sheets", f"{ctx.guild.id}")
 
-        # Load first available sheet (replace later with user mapping)
-        sheet_file = None
-        for f in os.listdir(sheets_folder):
-            if f.endswith(".json"):
-                sheet_file = os.path.join(sheets_folder, f)
-                break
+        # Get linked character
+        char_name = self.get_linked_character(ctx.guild.id, user)
+        sheet_file = os.path.join(sheets_folder, f"{char_name}.json")
+        if not char_name:
+            for f in os.listdir(sheets_folder):
+                if f.endswith(".json"):
+                    sheet_file = os.path.join(sheets_folder, f)
+                    break
+        if not os.path.exists(sheet_file):
+            await ctx.reply(f"Character sheet for `{char_name}` was not found.")
+            return
 
         data = None
         if sheet_file:
