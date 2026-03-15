@@ -317,10 +317,10 @@ class Music(commands.Cog):
             await self.send_now_playing_embed(text_channel, guild_id, track)
 
     @commands.hybrid_command(
-        name="play",
-        description="Play a song or playlist from YouTube, direct URL, local file, or search query"
+        name="play"
     )
     async def play(self, ctx, *, input_text: str):
+        """Play a song or playlist from YouTube, direct URL, local file, or search query"""
         logger.info(f"User {ctx.author} invoked play with: {input_text}")
 
         vc = await self.connect_to_vc(ctx)
@@ -348,10 +348,10 @@ class Music(commands.Cog):
             await self.play_next(ctx.guild.id, ctx.channel)
 
     @commands.hybrid_command(
-        name="forceplay",
-        description="Play ONLY a direct URL or file:// path (no YouTube search detection)"
+        name="forceplay"
     )
     async def forceplay(self, ctx, *, input_text: str):
+        """Play ONLY a direct URL or file:// path (no YouTube search detection)"""
         logger.info(f"User {ctx.author} invoked forceplay with: {input_text}")
 
         vc = await self.connect_to_vc(ctx)
@@ -376,8 +376,9 @@ class Music(commands.Cog):
         if not vc.is_playing() and not vc.is_paused():
             await self.play_next(ctx.guild.id, ctx.channel)
 
-    @commands.hybrid_command(name="skip", description="Skip the current track")
+    @commands.hybrid_command(name="skip")
     async def skip(self, ctx):
+        """Skip the current track"""
         vc = self.voice_clients.get(ctx.guild.id)
         if vc and (vc.is_playing() or vc.is_paused()):
             vc.stop()
@@ -385,8 +386,9 @@ class Music(commands.Cog):
         else:
             await ctx.reply("Nothing is playing.")
 
-    @commands.hybrid_command(name="queue", description="Show the current queue")
+    @commands.hybrid_command(name="queue")
     async def queue(self, ctx):
+        """Show the current queue"""
         queue = self.queues.get(ctx.guild.id, [])
         if not queue:
             await ctx.reply("Queue is empty.")
@@ -400,8 +402,9 @@ class Music(commands.Cog):
 
         await ctx.reply(f"**Queue:**\n{msg}")
 
-    @commands.hybrid_command(name="pause", description="Pause the current audio")
+    @commands.hybrid_command(name="pause")
     async def pause(self, ctx):
+        """Pause the current audio"""
         vc = self.voice_clients.get(ctx.guild.id)
         if vc and vc.is_playing():
             vc.pause()
@@ -409,8 +412,9 @@ class Music(commands.Cog):
         else:
             await ctx.reply("Nothing is playing.")
 
-    @commands.hybrid_command(name="resume", description="Resume paused audio")
+    @commands.hybrid_command(name="resume")
     async def resume(self, ctx):
+        """Resume paused audio"""
         vc = self.voice_clients.get(ctx.guild.id)
         if vc and vc.is_paused():
             vc.resume()
@@ -418,8 +422,9 @@ class Music(commands.Cog):
         else:
             await ctx.reply("Nothing is paused.")
 
-    @commands.hybrid_command(name="playpause", description="Toggle pause/resume")
+    @commands.hybrid_command(name="playpause")
     async def playpause(self, ctx):
+        """Toggle pause/resume"""
         vc = self.voice_clients.get(ctx.guild.id)
         if not vc or not vc.is_connected():
             await ctx.reply("I am not connected to a voice channel.")
@@ -437,8 +442,9 @@ class Music(commands.Cog):
 
         await ctx.reply("Nothing is playing.")
 
-    @commands.hybrid_command(name="volume", description="Set volume (0-200). Default is 100.")
+    @commands.hybrid_command(name="volume")
     async def volume(self, ctx, volume: int):
+        """Set volume (0-200). Default is 100."""
         guild_id = ctx.guild.id
 
         if volume < 0 or volume > 200:
@@ -455,8 +461,9 @@ class Music(commands.Cog):
 
         await ctx.reply(f"Volume set to **{volume}%**")
 
-    @commands.hybrid_command(name="stop", description="Stop audio, clear queue, and disconnect")
+    @commands.hybrid_command(name="stop")
     async def stop(self, ctx):
+        """Stop audio, clear queue, and disconnect"""
         guild_id = ctx.guild.id
         vc = self.voice_clients.get(guild_id)
 

@@ -9,7 +9,7 @@ from turtlebott.utils.logger import setup_logger
 logger = setup_logger("randfun")
 
 
-class RandFun(commands.Cog):
+class Randfun(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
@@ -41,4 +41,4 @@ class RandFun(commands.Cog):
 
 
 async def setup(bot):
-    await bot.add_cog(RandFun(bot))
+    await bot.add_cog(Randfun(bot))

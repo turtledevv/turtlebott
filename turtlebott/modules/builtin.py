@@ -4,8 +4,10 @@ Built-in commands module.
 import time
 import discord
 from discord.ext import commands
+
 from ..utils.logger import setup_logger
 from ..utils.module_loader import get_module_doc, get_all_modules, is_enabled
+from collections import defaultdict
 
 logger = setup_logger("builtin")
 
@@ -39,12 +41,24 @@ class Builtin(commands.Cog):
         """Provides help information about available commands."""
         logger.info(f"User {ctx.author} invoked help command.")
 
-        commands_list = []
-        for command in self.bot.commands:
-            if not command.hidden:
-                commands_list.append(f"**{command.name}** – *{command.help or 'No description provided.'}*")
+        modules = defaultdict(list)
 
-        help_message = "## **Available Commands:**\n" + "\n".join(commands_list)
+        for command in self.bot.commands:
+            if command.hidden:
+                continue
+
+            module = command.cog_name or "Other"
+            modules[module].append(
+                f"*{command.name}* – *{command.help or 'No description provided.'}*"
+            )
+
+        help_lines = []
+        for module, cmds in sorted(modules.items()):
+            help_lines.append(f"**{module}**")
+            help_lines.extend(sorted(cmds))
+
+        help_message = "\n".join(help_lines)
+
         await ctx.reply(help_message)
 
     @commands.hybrid_command(name="listmodules")
