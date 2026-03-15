@@ -33,10 +33,6 @@ def run():
     bot = commands.Bot(command_prefix="t.", intents=settings.intents, help_command=None)
 
     @bot.event
-    async def on_voice_state_update(member, before, after):
-        logger.info(f"Voice state update: {member} {before.channel} -> {after.channel}")
-
-    @bot.event
     async def on_ready():
         logger.info(f"Logged in as {bot.user}")
 
