@@ -110,7 +110,7 @@ class NowPlayingView(discord.ui.View):
             vc.stop()
 
         await vc.disconnect()
-        await interaction.response.send_message("Stopped, cleared queue, and disconnected.", ephemeral=True)
+        await interaction.response.send_message("Stopping and disconnecting!")
 
 
 class Music(commands.Cog):

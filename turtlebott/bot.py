@@ -22,7 +22,19 @@ def run():
     # logger.info("Turtlebott Copyright (C) 2025 Turtledevv. Licensed under the GPL 3.0 License.")
     # logger.info("This is free software, and you are welcome to redistribute it under certain conditions. This program comes with ABSOLUTELY NO WARRANTY; see LICENSE for details.")
 
+    if not discord.opus.is_loaded():
+        logger.warning("Discord Opus is not loaded, loading `libopus.so.0` manually!")
+        discord.opus.load_opus("libopus.so.0")
+        if not discord.opus.is_loaded():
+            logger.error("Discord Opus could not be loaded! Voice channel functionality will not work!")
+        else:
+            logger.info("Discord Opus loaded succesfully.")
+
     bot = commands.Bot(command_prefix="t.", intents=settings.intents, help_command=None)
+
+    @bot.event
+    async def on_voice_state_update(member, before, after):
+        logger.info(f"Voice state update: {member} {before.channel} -> {after.channel}")
 
     @bot.event
     async def on_ready():
