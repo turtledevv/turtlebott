@@ -34,6 +34,7 @@ def run():
 
     @bot.event
     async def on_ready():
+        await bot.change_presence(status=discord.Status.idle, activity=discord.Activity(name="Startin' up..", type=discord.ActivityType.playing))
         logger.info(f"Logged in as {bot.user}")
 
         logger.info("Loading modules...")

@@ -351,7 +351,15 @@ class DndHelper(commands.Cog):
             expression = expression.split(">")[1].strip()
         else:
             user = ctx.author.id
+        
+        saving = False
         thing = expression.lower().strip()
+        if thing.endswith("saving"):
+            thing = thing[:-6].strip()  # Remove "saving" from the end
+            saving = True
+        if thing.endswith("save"):
+            thing = thing[:-4].strip()  # Remove "save" from the end
+            saving = True
 
         base_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
         sheets_folder = os.path.join(base_folder, "data", "dnd_helper", "sheets", f"{ctx.guild.id}")
@@ -383,7 +391,7 @@ class DndHelper(commands.Cog):
 
             mod = None
             label = thing
-
+                
             if thing in ["initiative", "init"]:
                 mod = combat.get("initiative")
                 label = "Initiative"
@@ -411,17 +419,17 @@ class DndHelper(commands.Cog):
             elif thing in ["cha", "charisma"]:
                 mod = abilities.get("cha_mod")
                 label = "Charisma"
-
-            elif thing in saves:
-                mod = saves[thing]["value"]
-                label = f"{thing.upper()} Save"
-
+                
             else:
                 for skill in skills:
                     if skill["name"].lower() == thing:
                         mod = skill["value"]
                         label = skill["name"]
                         break
+                
+            if saving:
+                mod = saves[thing]["value"]
+                label = f"{label} (Saving Throw)"
 
             if mod is not None:
                 expression = f"1d20{mod}"
